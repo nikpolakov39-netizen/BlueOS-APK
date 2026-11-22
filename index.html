@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BlueOS PS5 Edition</title>
+<style>
+  :root {
+    --bg-deep: #030712;
+    --bg-ps: radial-gradient(circle at 22% 18%, #10327a 0%, #06122e 45%, #02050d 100%);
+    --glass: rgba(14, 34, 78, 0.42);
+    --glass-strong: rgba(10, 24, 58, 0.78);
+    --border-dim: rgba(112, 178, 255, 0.22);
+    --border-glow: #4da6ff;
+    --ps-blue: #0070d1;
+    --ps-cyan: #38bdf8;
+    --text-main: #f8fafc;
+    --text-sub: #94a3b8;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-ps);
+    color: var(--text-main);
+    display: flex;
+    position: relative;
+  }
+
+  .ps-ambient {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .ps-ambient::before {
+    content: '';
+    position: absolute;
+    width: 65vw;
+    height: 65vw;
+    top: -25vw;
+    left: -10vw;
+    background: radial-gradient(circle, rgba(0, 112, 209, 0.28) 0%, transparent 70%);
+    filter: blur(40px);
+    animation: pulseWave 9s ease-in-out infinite alternate;
+  }
+
+  .ps-ambient::after {
+    content: '';
+    position: absolute;
+    width: 55vw;
+    height: 55vw;
+    bottom: -25vw;
+    right: 5vw;
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, transparent 70%);
+    filter: blur(50px);
+    animation: pulseWave 12s ease-in-out infinite alternate-reverse;
+  }
+
+  @keyframes pulseWave {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.75; }
+    100% { transform: translate(30px, 20px) scale(1.12); opacity: 1; }
+  }
+
+  #workspace {
+    flex: 1;
+    height: 100%;
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #topbar {
+    height: 44px;
+    padding: 0 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+
+  .ps-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-main);
+  }
+
+  .ps-brand-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ps-cyan);
+    box-shadow: 0 0 10px var(--ps-cyan);
+  }
+
+  .top-right-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--text-sub);
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(15, 35, 80, 0.5);
+    border: 1px solid var(--border-dim);
+    font-size: 12px;
+    color: #cbd5e1;
+  }
+
+  #clock {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-main);
+  }
+
+  .screen {
+    flex: 1;
+    width: 100%;
+    height: calc(100% - 44px);
+    display: none;
+    flex-direction: column;
+    padding: 6px 26px 18px 26px;
+    overflow-y: auto;
+    animation: psFade 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .screen.active {
+    display: flex;
+  }
+
+  @keyframes psFade {
+    from { opacity: 0; transform: translateY(6px) scale(0.99); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ГЛАВНЫЙ ЭКРАН PS5 */
+  #home-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  #home-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #home-ribbon::-webkit-scrollbar { display: none; }
+
+  .ps-tile {
+    position: relative;
+    width: 82px;
+    height: 82px;
+    flex-shrink: 0;
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(22, 54, 122, 0.55), rgba(8, 20, 50, 0.85));
+    border: 1.5px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  .ps-tile svg {
+    width: 32px;
+    height: 32px;
+    stroke: #dbeafe;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.2s;
+  }
+
+  .ps-tile.selected {
+    width: 100px;
+    height: 100px;
+    border-color: var(--text-main);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.35), 0 12px 28px rgba(0, 112, 209, 0.55);
+    background: linear-gradient(145deg, rgba(0, 112, 209, 0.65), rgba(10, 28, 70, 0.92));
+  }
+
+  .ps-tile.selected svg {
+    width: 40px;
+    height: 40px;
+    stroke: #ffffff;
+  }
+
+  .tile-counter {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--ps-blue);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+  }
+
+  #ps-hero {
+    flex: 1;
+    margin-top: 12px;
+    border-radius: 24px;
+    background: linear-gradient(110deg, rgba(11, 29, 72, 0.78) 0%, rgba(7, 19, 48, 0.45) 60%, rgba(0, 112, 209, 0.22) 100%);
+    border: 1px solid var(--border-dim);
+    backdrop-filter: blur(14px);
+    padding: 22px 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #ps-hero-bg-icon {
+    position: absolute;
+    right: 36px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.12;
+    pointer-events: none;
+  }
+
+  #ps-hero-bg-icon svg {
+    width: 185px;
+    height: 185px;
+    stroke: #7dd3fc;
+    fill: none;
+    stroke-width: 1.2;
+  }
+
+  .hero-info {
+    max-width: 70%;
+    z-index: 2;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--ps-cyan);
+    margin-bottom: 6px;
+  }
+
+  .hero-title {
+    font-size: 30px;
+    font-weight: 300;
+    color: #ffffff;
+    margin-bottom: 8px;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.45;
+    margin-bottom: 16px;
+  }
+
+  .ps-cta-btn {
+    background: #ffffff;
+    color: #030712;
+    border: none;
+    padding: 10px 26px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.25);
+    transition: transform 0.15s;
+  }
+  .ps-cta-btn:active { transform: scale(0.95); }
+
+  /* Правая навигационная панель */
+  #nav-bar {
+    width: 72px;
+    height: 100%;
+    background: rgba(5, 13, 32, 0.85);
+    backdrop-filter: blur(18px);
+    border-left: 1px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    padding: 18px 0;
+    z-index: 50;
+  }
+
+  .nav-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.16s;
+  }
+
+  .nav-btn:active {
+    background: #ffffff;
+    border-color: #ffffff;
+    transform: scale(0.9);
+  }
+  .nav-btn:active svg { stroke: #030712; }
+
+  .nav-btn svg {
+    width: 22px;
+    height: 22px;
+    stroke: #e2e8f0;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  #tabs-count {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: var(--ps-cyan);
+    color: #030712;
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+
+  /* Заголовки разделов */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 300;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title svg {
+    width: 22px;
+    height: 22px;
+    stroke: var(--ps-cyan);
+    fill: none;
+    stroke-width: 2;
+  }
+
+  .btn {
+    background: var(--ps-blue);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.95); }
+
+  .btn.ghost {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+  }
+
+  .btn.danger {
+    background: rgba(225, 29, 72, 0.25);
+    border: 1px solid rgba(244, 63, 94, 0.5);
+    color: #fda4af;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 14px;
+  }
+
+  .ps-card {
+    background: var(--glass);
+    border: 1px solid var(--border-dim);
+    backdrop-filter: blur(12px);
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .card-icon-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    background: linear-gradient(145deg, rgba(0, 112, 209, 0.45), rgba(10, 25, 62, 0.8));
+    border: 1px solid rgba(125, 211, 252, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .card-icon-box svg {
+    width: 22px;
+    height: 22px;
+    stroke: #e0f2fe;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .card-actions .btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+  }
+
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 560px;
+  }
+
+  .setting-item {
+    background: var(--glass);
+    border: 1px solid var(--border-dim);
+    border-radius: 16px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* БРАУЗЕР GOOGLE И YOUTUBE */
+  .browser-shell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: rgba(5, 13, 32, 0.82);
+    border: 1px solid var(--border-dim);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .browser-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(11, 28, 68, 0.85);
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .browser-input {
+    flex: 1;
+    background: rgba(2, 8, 23, 0.75);
+    border: 1px solid rgba(125, 211, 252, 0.3);
+    border-radius: 999px;
+    padding: 8px 16px;
+    color: #ffffff;
+    font-size: 13px;
+    outline: none;
+    user-select: text;
+  }
+
+  .browser-input:focus {
+    border-color: var(--ps-cyan);
+  }
+
+  .bookmarks-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    background: rgba(7, 18, 45, 0.7);
+    border-bottom: 1px solid var(--border-dim);
+    overflow-x: auto;
+  }
+
+  .bm-chip {
+    background: rgba(0, 112, 209, 0.25);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #e0f2fe;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .bm-chip:active { background: var(--ps-blue); }
+
+  .webview-frame {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #ffffff;
+  }
+
+  /* YouTube видео-каталог + плеер */
+  .yt-layout {
+    flex: 1;
+    display: flex;
+    gap: 14px;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .yt-player-zone {
+    flex: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #020612;
+    border-radius: 14px;
+    border: 1px solid var(--border-dim);
+    overflow: hidden;
+  }
+
+  .yt-playlist {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .yt-item {
+    background: rgba(15, 38, 88, 0.45);
+    border: 1px solid var(--border-dim);
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .yt-item:hover, .yt-item.active {
+    border-color: var(--ps-cyan);
+    background: rgba(0, 112, 209, 0.35);
+  }
+
+  /* Сцена игры */
+  #game-stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 9, 24, 0.72);
+    border: 1px solid var(--border-dim);
+    border-radius: 20px;
+    padding: 12px;
+  }
+
+  canvas {
+    background: #020612;
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    border-radius: 14px;
+    box-shadow: 0 0 25px rgba(0, 112, 209, 0.25);
+  }
+
+  #ps-toast {
+    position: fixed;
+    top: 52px;
+    left: 26px;
+    background: rgba(8, 20, 48, 0.94);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    border-left: 4px solid var(--ps-cyan);
+    backdrop-filter: blur(14px);
+    color: #ffffff;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.22s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  #ps-toast.show { opacity: 1; transform: translateX(0); }
+</style>
+</head>
+<body>
+
+<div class="ps-ambient"></div>
+
+<div id="workspace">
+  <div id="topbar">
+    <div class="ps-brand">
+      <span class="ps-brand-dot"></span>
+      <span>BLUE OS</span>
+    </div>
+    <div class="top-right-info">
+      <div class="status-pill" id="breadcrumb-pill">Главный экран</div>
+      <div id="clock">12:00</div>
+    </div>
+  </div>
+
+  <!-- 1. ГЛАВНЫЙ ЭКРАН -->
+  <div id="screen-home" class="screen active">
+    <div id="home-layout">
+      <div id="home-ribbon"></div>
+      <div id="ps-hero">
+        <div class="hero-info">
+          <div class="hero-tag" id="hero-tag">СИСТЕМА</div>
+          <div class="hero-title" id="hero-title">Настройки</div>
+          <div class="hero-desc" id="hero-desc">Управление параметрами системы.</div>
+          <button class="ps-cta-btn" id="hero-launch-btn">Открыть</button>
+        </div>
+        <div id="ps-hero-bg-icon"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. НАСТРОЙКИ -->
+  <div id="screen-settings" class="screen">
+    <div class="section-head">
+      <div class="section-title" id="title-settings"></div>
+    </div>
+    <div class="settings-list">
+      <div class="setting-item">
+        <div>
+          <div style="font-weight:600; font-size:15px;">Атмосфера подсветки</div>
+          <div style="font-size:12px; color:var(--text-sub);">Переключить глубину синего градиента</div>
+        </div>
+        <button class="btn" onclick="cycleTheme()">Переключить</button>
+      </div>
+      <div class="setting-item">
+        <div>
+          <div style="font-weight:600; font-size:15px;">Установленные программы</div>
+          <div style="font-size:12px; color:var(--text-sub);" id="stat-installed">Установлено: 0 из 5</div>
+        </div>
+        <button class="btn ghost" onclick="openApp('market')">Перейти в Маркет</button>
+      </div>
+      <div class="setting-item">
+        <div>
+          <div style="font-weight:600; font-size:15px;">Инициализация системы</div>
+          <div style="font-size:12px; color:var(--text-sub);">Очистить папку и удалить установленные приложения</div>
+        </div>
+        <button class="btn danger" onclick="resetOS()">Сбросить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. ПАПКА С ПРИЛОЖЕНИЯМИ -->
+  <div id="screen-folder" class="screen">
+    <div class="section-head">
+      <div class="section-title" id="title-folder"></div>
+      <span style="font-size:12px; color:var(--text-sub);">Скачанные игры и приложения</span>
+    </div>
+    <div id="folder-content" class="cards-grid"></div>
+  </div>
+
+  <!-- 4. МАРКЕТ -->
+  <div id="screen-market" class="screen">
+    <div class="section-head">
+      <div class="section-title" id="title-market"></div>
+      <span style="font-size:12px; color:var(--text-sub);">Приложения и игры Blue Store</span>
+    </div>
+    <div id="market-list" class="cards-grid"></div>
+  </div>
+
+  <!-- 5. ВКЛАДКИ -->
+  <div id="screen-tabs" class="screen">
+    <div class="section-head">
+      <div class="section-title" id="title-tabs"></div>
+      <button class="btn danger" onclick="closeAllTabs()">Закрыть все вкладки</button>
+    </div>
+    <div id="tabs-list" class="cards-grid"></div>
+  </div>
+
+  <!-- 6. GOOGLE БРАУЗЕР -->
+  <div id="screen-google" class="screen">
+    <div class="browser-shell">
+      <div class="browser-toolbar">
+        <button class="btn ghost" onclick="loadBrowserUrl('https://www.google.com/webhp?igu=1')">Домой</button>
+        <input type="text" id="browser-url-input" class="browser-input" placeholder="Введите запрос в Google или адрес сайта (например: wikipedia.org)..." onkeydown="if(event.key==='Enter') handleBrowserGo()">
+        <button class="btn" onclick="handleBrowserGo()">Перейти</button>
+        <button class="btn ghost" title="Открыть в системном окне, если сайт блокирует фрейм" onclick="openExternalBrowser()">Внешнее окно</button>
+      </div>
+      <div class="bookmarks-bar">
+        <span style="font-size:11px; color:var(--text-sub);">Закладки:</span>
+        <button class="bm-chip" onclick="loadBrowserUrl('https://www.google.com/webhp?igu=1')">Google Поиск</button>
+        <button class="bm-chip" onclick="loadBrowserUrl('https://ru.m.wikipedia.org')">Wikipedia</button>
+        <button class="bm-chip" onclick="loadBrowserUrl('https://www.bing.com')">Bing</button>
+        <button class="bm-chip" onclick="loadBrowserUrl('https://duckduckgo.com')">DuckDuckGo</button>
+        <button class="bm-chip" onclick="loadBrowserUrl('https://yandex.ru')">Яндекс</button>
+      </div>
+      <iframe id="google-iframe" class="webview-frame" src="https://www.google.com/webhp?igu=1" sandbox="allow-forms allow-scripts allow-same-origin allow-popups"></iframe>
+    </div>
+  </div>
+
+  <!-- 7. YOUTUBE -->
+  <div id="screen-youtube" class="screen">
+    <div class="browser-shell">
+      <div class="browser-toolbar">
+        <span style="font-weight:700; color:#38bdf8; font-size:13px; padding:0 6px;">YOUTUBE</span>
+        <input type="text" id="yt-search-input" class="browser-input" placeholder="Поиск видео на YouTube или вставьте ссылку на ролик..." onkeydown="if(event.key==='Enter') handleYtSearch()">
+        <button class="btn" onclick="handleYtSearch()">Найти</button>
+        <button class="btn ghost" onclick="openYtExternal()">Открыть сайт YouTube</button>
+      </div>
+      <div class="yt-layout">
+        <div class="yt-player-zone">
+          <iframe id="yt-iframe" class="webview-frame" style="background:#000;" src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+        <div class="yt-playlist" id="yt-playlist"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. ОКНО ИГРЫ -->
+  <div id="screen-game" class="screen">
+    <div class="section-head">
+      <div class="section-title" id="game-title">Игра</div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <span id="game-score" style="font-size:14px; font-weight:600; color:var(--ps-cyan);">Счёт: 0</span>
+        <button class="btn ghost" onclick="restartCurrentGame()">Заново</button>
+      </div>
+    </div>
+    <div id="game-stage"></div>
+  </div>
+</div>
+
+<!-- ПРАВАЯ ПАНЕЛЬ НАВИГАЦИИ -->
+<div id="nav-bar">
+  <button class="nav-btn" title="Назад" onclick="goBack()">
+    <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  </button>
+
+  <button class="nav-btn" title="Главный экран" onclick="goHome()">
+    <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+  </button>
+
+  <button class="nav-btn" title="Вкладки" onclick="openTabsScreen()">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="12" height="16" rx="2"/><path d="M16 7h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9"/></svg>
+    <span id="tabs-count">0</span>
+  </button>
+</div>
+
+<div id="ps-toast"></div>
+
+<script>
+  const ICONS = {
+    settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    folder: `<svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+    market: `<svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+    tabs: `<svg viewBox="0 0 24 24"><rect x="4" y="4" width="12" height="16" rx="2"/><path d="M16 7h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9"/></svg>`,
+    google: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    youtube: `<svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="4"/><polygon points="10 9 15 12 10 15 10 9"/></svg>`,
+    clicker: `<svg viewBox="0 0 24 24"><polygon points="12 2 22 9 12 22 2 9 12 2"/><line x1="2" y1="9" x2="22" y2="9"/><polyline points="12 2 8 9 12 22 16 9 12 2"/></svg>`,
+    snake: `<svg viewBox="0 0 24 24"><path d="M4 17h10a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h11"/><polyline points="16 2 19 5 16 8"/></svg>`,
+    catcher: `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+  };
+
+  // Каталог Blue Store: Google, YouTube и 3 игры
+  const STORE_ITEMS = [
+    {
+      id: 'google',
+      type: 'app',
+      name: 'Google Browser',
+      tag: 'ИНТЕРНЕТ • БРАУЗЕР',
+      desc: 'Веб-браузер со строкой поиска Google, закладками и переходом на любые сайты.'
+    },
+    {
+      id: 'youtube',
+      type: 'app',
+      name: 'YouTube',
+      tag: 'МЕДИА • ВИДЕО',
+      desc: 'Просмотр видеороликов, стримов и поиск контента прямо внутри оболочки BlueOS.'
+    },
+    {
+      id: 'clicker',
+      type: 'game',
+      name: 'Pulse Core',
+      tag: 'ИГРА • КЛИКЕР',
+      desc: 'Генерируйте квантовую энергию нажатием на ядро и модернизируйте реактор.'
+    },
+    {
+      id: 'snake',
+      type: 'game',
+      name: 'Cyber Vector',
+      tag: 'ИГРА • АРКАДА',
+      desc: 'Управляйте световым потоком, поглощайте импульсы и избегайте столкновений.'
+    },
+    {
+      id: 'catcher',
+      type: 'game',
+      name: 'Orbital Shield',
+      tag: 'ИГРА • ЭКШН',
+      desc: 'Перехватывайте синие энергетические сферы щитом и уклоняйтесь от красных зарядов.'
+    }
+  ];
+
+  // Стартовые видео для YouTube
+  const YT_PRESETS = [
+    { title: 'Lofi Hip Hop Radio — Beats to Relax/Study', channel: 'Lofi Girl', vid: 'jfKfPfyJRdk' },
+    { title: 'PlayStation 5 — Официальный трейлер интерфейса', channel: 'PlayStation', vid: '7TR-flTBf64' },
+    { title: 'Synthwave Radio — Chill Gaming Music', channel: 'Synthwave', vid: '4xDzrJKXOOY' },
+    { title: 'Minecraft — Расслабляющая музыка и пейзажи', channel: 'Game Ambient', vid: 'Dg0IjOzopYU' }
+  ];
+
+  let osState = JSON.parse(localStorage.getItem('blue_os_ps5_v2')) || {
+    installed: [],
+    onHome: [],
+    themeIdx: 0
+  };
+
+  let selectedTileId = 'settings';
+  let historyStack = ['home'];
+  let openTabs = [];
+  let activeGameId = null;
+  let gameLoopTimer = null;
+  let currentBrowserUrl = 'https://www.google.com/webhp?igu=1';
+
+  const THEMES = [
+    'radial-gradient(circle at 22% 18%, #10327a 0%, #06122e 45%, #02050d 100%)',
+    'radial-gradient(circle at 22% 18%, #0c4a6e 0%, #04172b 45%, #01060f 100%)',
+    'radial-gradient(circle at 22% 18%, #1e1b4b 0%, #090d26 45%, #02040a 100%)'
+  ];
+
+  function saveState() {
+    localStorage.setItem('blue_os_ps5_v2', JSON.stringify(osState));
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('ps-toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${h}:${m}`;
+  }
+  setInterval(updateClock, 5000);
+  updateClock();
+
+  document.getElementById('title-settings').innerHTML = `${ICONS.settings} Настройки системы`;
+  document.getElementById('title-folder').innerHTML = `${ICONS.folder} Папка приложений`;
+  document.getElementById('title-market').innerHTML = `${ICONS.market} Blue Store`;
+  document.getElementById('title-tabs').innerHTML = `${ICONS.tabs} Открытые вкладки`;
+
+  function switchScreen(screenName, addToHistory = true) {
+    stopGameLoop();
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(`screen-${screenName}`).classList.add('active');
+
+    if (addToHistory && historyStack[historyStack.length - 1] !== screenName) {
+      historyStack.push(screenName);
+    }
+
+    const names = {
+      home: 'Главный экран',
+      settings: 'Настройки',
+      folder: 'Папка',
+      market: 'Маркет',
+      tabs: 'Вкладки',
+      google: 'Google Browser',
+      youtube: 'YouTube',
+      game: 'Игра'
+    };
+    document.getElementById('breadcrumb-pill').textContent = names[screenName] || 'BlueOS';
+
+    if (screenName === 'home') renderHome();
+    if (screenName === 'folder') renderFolder();
+    if (screenName === 'market') renderMarket();
+    if (screenName === 'settings') renderSettings();
+    if (screenName === 'tabs') renderTabs();
+    if (screenName === 'youtube') renderYtList();
+  }
+
+  function goBack() {
+    if (historyStack.length > 1) {
+      historyStack.pop();
+      switchScreen(historyStack[historyStack.length - 1], false);
+    } else {
+      showToast('Вы на главном экране');
+    }
+  }
+
+  function goHome() {
+    historyStack = ['home'];
+    switchScreen('home', false);
+  }
+
+  function openTabsScreen() {
+    switchScreen('tabs', true);
+  }
+
+  function addTab(id, name, iconKey) {
+    if (!openTabs.some(t => t.id === id)) {
+      openTabs.push({ id, name, iconKey });
+      updateTabsBadge();
+    }
+  }
+
+  function updateTabsBadge() {
+    const badge = document.getElementById('tabs-count');
+    if (openTabs.length > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = openTabs.length;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function closeSingleTab(id) {
+    openTabs = openTabs.filter(t => t.id !== id);
+    updateTabsBadge();
+    renderTabs();
+  }
+
+  function closeAllTabs() {
+    openTabs = [];
+    updateTabsBadge();
+    renderTabs();
+    showToast('Все вкладки закрыты');
+  }
+
+  function openApp(appId) {
+    if (appId === 'settings') {
+      addTab('settings', 'Настройки', 'settings');
+      switchScreen('settings');
+    } else if (appId === 'folder') {
+      addTab('folder', 'Папка', 'folder');
+      switchScreen('folder');
+    } else if (appId === 'market') {
+      addTab('market', 'Маркет', 'market');
+      switchScreen('market');
+    } else if (appId === 'google') {
+      addTab('google', 'Google Browser', 'google');
+      switchScreen('google');
+    } else if (appId === 'youtube') {
+      addTab('youtube', 'YouTube', 'youtube');
+      switchScreen('youtube');
+    } else {
+      const game = STORE_ITEMS.find(g => g.id === appId);
+      if (game) {
+        addTab(game.id, game.name, game.id);
+        launchGame(game);
+      }
+    }
+  }
+
+  // Главный экран PS5
+  function renderHome() {
+    const ribbon = document.getElementById('home-ribbon');
+    ribbon.innerHTML = '';
+
+    const inFolderCount = osState.installed.filter(id => !osState.onHome.includes(id)).length;
+
+    const items = [
+      {
+        id: 'settings',
+        name: 'Настройки',
+        tag: 'СИСТЕМА',
+        desc: 'Управление параметрами отображения, темами оформления и сбросом памяти.',
+        icon: ICONS.settings
+      },
+      {
+        id: 'folder',
+        name: 'Папка',
+        tag: `БИБЛИОТЕКА • ВНУТРИ: ${inFolderCount}`,
+        desc: 'Хранилище скачанных программ и игр. Выносите ярлыки на главный экран или убирайте обратно.',
+        icon: ICONS.folder,
+        badge: inFolderCount
+      },
+      {
+        id: 'market',
+        name: 'Маркет',
+        tag: 'BLUE STORE',
+        desc: 'Магазин приложений: скачайте Google Browser, YouTube и встроенные игры.',
+        icon: ICONS.market
+      }
+    ];
+
+    osState.onHome.forEach(itemId => {
+      const entry = STORE_ITEMS.find(item => item.id === itemId);
+      if (entry) {
+        items.push({
+          id: entry.id,
+          name: entry.name,
+          tag: entry.tag,
+          desc: entry.desc,
+          icon: ICONS[entry.id]
+        });
+      }
+    });
+
+    if (!items.some(i => i.id === selectedTileId)) {
+      selectedTileId = 'settings';
+    }
+
+    items.forEach(item => {
+      const isSelected = item.id === selectedTileId;
+      const tile = document.createElement('div');
+      tile.className = 'ps-tile' + (isSelected ? ' selected' : '');
+      tile.innerHTML = `
+        ${item.icon}
+        ${item.badge !== undefined ? `<span class="tile-counter">${item.badge}</span>` : ''}
+      `;
+
+      tile.onclick = () => {
+        if (selectedTileId === item.id) {
+          openApp(item.id);
+        } else {
+          selectedTileId = item.id;
+          renderHome();
+        }
+      };
+
+      ribbon.appendChild(tile);
+
+      if (isSelected) {
+        document.getElementById('hero-tag').textContent = item.tag;
+        document.getElementById('hero-title').textContent = item.name;
+        document.getElementById('hero-desc').textContent = item.desc;
+        document.getElementById('ps-hero-bg-icon').innerHTML = item.icon;
+        const btn = document.getElementById('hero-launch-btn');
+        const storeObj = STORE_ITEMS.find(g => g.id === item.id);
+        btn.textContent = storeObj ? (storeObj.type === 'game' ? 'Играть' : 'Запустить') : 'Открыть';
+        btn.onclick = () => openApp(item.id);
+      }
+    });
+  }
+
+  // Папка
+  function renderFolder() {
+    const container = document.getElementById('folder-content');
+    container.innerHTML = '';
+
+    if (osState.installed.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-sub); font-size:14px;">
+          Папка пуста. Перейдите в Маркет, чтобы загрузить Google, YouTube или игры.
+        </div>`;
+      return;
+    }
+
+    osState.installed.forEach(itemId => {
+      const item = STORE_ITEMS.find(g => g.id === itemId);
+      if (!item) return;
+      const isOnHome = osState.onHome.includes(itemId);
+
+      const card = document.createElement('div');
+      card.className = 'ps-card';
+      card.innerHTML = `
+        <div class="card-top">
+          <div class="card-icon-box">${ICONS[item.id]}</div>
+          <div>
+            <div style="font-weight:600; font-size:15px;">${item.name}</div>
+            <div style="font-size:11px; color:var(--ps-cyan); margin-top:2px;">
+              ${isOnHome ? 'На главном экране' : 'В папке'}
+            </div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn" onclick="openApp('${item.id}')">Открыть</button>
+          <button class="btn ghost" onclick="toggleHomeShortcut('${item.id}')">
+            ${isOnHome ? 'В папку' : 'На экран'}
+          </button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function toggleHomeShortcut(itemId) {
+    if (osState.onHome.includes(itemId)) {
+      osState.onHome = osState.onHome.filter(id => id !== itemId);
+      showToast('Ярлык убран с главного экрана');
+    } else {
+      osState.onHome.push(itemId);
+      showToast('Ярлык вынесен на главный экран');
+    }
+    saveState();
+    renderFolder();
+  }
+
+  // Маркет
+  function renderMarket() {
+    const list = document.getElementById('market-list');
+    list.innerHTML = '';
+
+    STORE_ITEMS.forEach(item => {
+      const isInstalled = osState.installed.includes(item.id);
+      const card = document.createElement('div');
+      card.className = 'ps-card';
+      card.innerHTML = `
+        <div>
+          <div class="card-top">
+            <div class="card-icon-box">${ICONS[item.id]}</div>
+            <div>
+              <div style="font-weight:600; font-size:16px;">${item.name}</div>
+              <div style="font-size:11px; color:var(--ps-cyan);">${item.tag}</div>
+            </div>
+          </div>
+          <div style="font-size:12px; color:var(--text-sub); line-height:1.45; margin-top:12px;">
+            ${item.desc}
+          </div>
+        </div>
+        <button class="btn ${isInstalled ? 'ghost' : ''}" onclick="installOrOpenItem('${item.id}')">
+          ${isInstalled ? 'Запустить' : 'Скачать'}
+        </button>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function installOrOpenItem(itemId) {
+    if (!osState.installed.includes(itemId)) {
+      osState.installed.push(itemId);
+      saveState();
+      renderMarket();
+      showToast('Загрузка завершена — добавлено в Папку');
+    } else {
+      openApp(itemId);
+    }
+  }
+
+  // Настройки
+  function renderSettings() {
+    document.getElementById('stat-installed').textContent = `Установлено: ${osState.installed.length} из ${STORE_ITEMS.length}`;
+  }
+
+  function cycleTheme() {
+    osState.themeIdx = (osState.themeIdx + 1) % THEMES.length;
+    document.body.style.background = THEMES[osState.themeIdx];
+    saveState();
+    showToast('Подсветка интерфейса обновлена');
+  }
+
+  function resetOS() {
+    osState = { installed: [], onHome: [], themeIdx: 0 };
+    document.body.style.background = THEMES[0];
+    openTabs = [];
+    selectedTileId = 'settings';
+    updateTabsBadge();
+    saveState();
+    renderSettings();
+    showToast('Система сброшена к заводским параметрам');
+  }
+
+  // Вкладки
+  function renderTabs() {
+    const list = document.getElementById('tabs-list');
+    list.innerHTML = '';
+
+    if (openTabs.length === 0) {
+      list.innerHTML = `
+        <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-sub); font-size:14px;">
+          Активные вкладки отсутствуют
+        </div>`;
+      return;
+    }
+
+    openTabs.forEach(tab => {
+      const card = document.createElement('div');
+      card.className = 'ps-card';
+      card.innerHTML = `
+        <div class="card-top">
+          <div class="card-icon-box">${ICONS[tab.iconKey] || ICONS.tabs}</div>
+          <div style="font-weight:600; font-size:15px;">${tab.name}</div>
+        </div>
+        <div class="card-actions">
+          <button class="btn ghost" onclick="openApp('${tab.id}')">Открыть</button>
+          <button class="btn danger" onclick="closeSingleTab('${tab.id}')">Закрыть</button>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  // ================= ЛОГИКА GOOGLE БРАУЗЕРА =================
+  function loadBrowserUrl(url) {
+    currentBrowserUrl = url;
+    document.getElementById('browser-url-input').value = url;
+    document.getElementById('google-iframe').src = url;
+  }
+
+  function handleBrowserGo() {
+    let raw = document.getElementById('browser-url-input').value.trim();
+    if (!raw) return;
+
+    let targetUrl = '';
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      targetUrl = raw;
+    } else if (raw.includes('.') && !raw.includes(' ')) {
+      targetUrl = 'https://' + raw;
+    } else {
+      targetUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(raw);
+    }
+
+    loadBrowserUrl(targetUrl);
+  }
+
+  function openExternalBrowser() {
+    window.open(currentBrowserUrl, '_blank');
+  }
+
+  // ================= ЛОГИКА YOUTUBE =================
+  function renderYtList() {
+    const list = document.getElementById('yt-playlist');
+    list.innerHTML = '';
+    YT_PRESETS.forEach((v, idx) => {
+      const card = document.createElement('div');
+      card.className = 'yt-item' + (idx === 0 ? ' active' : '');
+      card.innerHTML = `
+        <div style="font-weight:600; font-size:13px; color:#fff; margin-bottom:4px;">${v.title}</div>
+        <div style="font-size:11px; color:var(--ps-cyan);">${v.channel}</div>
+      `;
+      card.onclick = () => {
+        document.querySelectorAll('.yt-item').forEach(el => el.classList.remove('active'));
+        card.classList.add('active');
+        document.getElementById('yt-iframe').src = `https://www.youtube.com/embed/${v.vid}?autoplay=1`;
+      };
+      list.appendChild(card);
+    });
+  }
+
+  function handleYtSearch() {
+    const q = document.getElementById('yt-search-input').value.trim();
+    if (!q) return;
+
+    // Если вставлена прямая ссылка на YouTube ролик
+    const match = q.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+    if (match && match[1]) {
+      document.getElementById('yt-iframe').src = `https://www.youtube.com/embed/${match[1]}?autoplay=1`;
+      showToast('Запуск видео по ссылке');
+      return;
+    }
+
+    // Иначе ищем через встроенный плеер по запросу
+    document.getElementById('yt-iframe').src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}`;
+    showToast('Поиск видео: ' + q);
+  }
+
+  function openYtExternal() {
+    const q = document.getElementById('yt-search-input').value.trim();
+    const url = q ? `https://m.youtube.com/results?search_query=${encodeURIComponent(q)}` : 'https://m.youtube.com';
+    window.open(url, '_blank');
+  }
+
+  // ================= ИГРОВОЙ МОДУЛЬ =================
+  function stopGameLoop() {
+    if (gameLoopTimer) {
+      clearInterval(gameLoopTimer);
+      gameLoopTimer = null;
+    }
+  }
+
+  function restartCurrentGame() {
+    const game = STORE_ITEMS.find(g => g.id === activeGameId);
+    if (game) launchGame(game);
+  }
+
+  function launchGame(game) {
+    activeGameId = game.id;
+    switchScreen('game');
+    document.getElementById('game-title').innerHTML = `${ICONS[game.id]} ${game.name}`;
+    const stage = document.getElementById('game-stage');
+    stage.innerHTML = '';
+
+    if (game.id === 'clicker') initClickerGame(stage);
+    if (game.id === 'snake') initSnakeGame(stage);
+    if (game.id === 'catcher') initCatcherGame(stage);
+  }
+
+  function initClickerGame(stage) {
+    let energy = 0;
+    let power = 1;
+    let cost = 15;
+    document.getElementById('game-score').textContent = 'Энергия: 0';
+
+    stage.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:18px;">
+        <div id="core-orb" style="width:126px; height:126px; border-radius:50%; background:radial-gradient(circle, #38bdf8 0%, #0070d1 55%, #07193d 100%); border:2px solid #bae6fd; box-shadow:0 0 36px rgba(56, 189, 248, 0.55); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.08s;">
+          <div style="width:52px; height:52px; border-radius:50%; border:2px solid rgba(255,255,255,0.7);"></div>
+        </div>
+        <div style="font-size:13px; color:var(--text-sub);">Мощность импульса: <span id="core-power" style="color:#fff; font-weight:600;">+1</span></div>
+        <button class="btn" id="core-upg">Усилить ядро (15)</button>
+      </div>
+    `;
+
+    const orb = document.getElementById('core-orb');
+    const upg = document.getElementById('core-upg');
+
+    orb.onclick = () => {
+      energy += power;
+      document.getElementById('game-score').textContent = `Энергия: ${energy}`;
+      orb.style.transform = 'scale(0.91)';
+      setTimeout(() => orb.style.transform = 'scale(1)', 80);
+    };
+
+    upg.onclick = () => {
+      if (energy >= cost) {
+        energy -= cost;
+        power += 1;
+        cost = Math.floor(cost * 1.6);
+        document.getElementById('game-score').textContent = `Энергия: ${energy}`;
+        document.getElementById('core-power').textContent = `+${power}`;
+        upg.textContent = `Усилить ядро (${cost})`;
+      } else {
+        showToast('Недостаточно энергии');
+      }
+    };
+  }
+
+  function initSnakeGame(stage) {
+    stage.innerHTML = `
+      <div style="display:flex; align-items:center; gap:26px;">
+        <canvas id="snake-canvas" width="260" height="220"></canvas>
+        <div style="display:grid; grid-template-columns:repeat(3, 48px); gap:8px;">
+          <div></div><button class="btn ghost" id="sn-up">W</button><div></div>
+          <button class="btn ghost" id="sn-left">A</button>
+          <button class="btn ghost" id="sn-down">S</button>
+          <button class="btn ghost" id="sn-right">D</button>
+        </div>
+      </div>
+    `;
+    const canvas = document.getElementById('snake-canvas');
+    const ctx = canvas.getContext('2d');
+    const box = 20;
+    let snake = [{ x: 6 * box, y: 5 * box }];
+    let dir = 'RIGHT';
+    let score = 0;
+    let food = { x: 9 * box, y: 5 * box };
+
+    document.getElementById('game-score').textContent = 'Счёт: 0';
+    document.getElementById('sn-up').onclick = () => { if (dir !== 'DOWN') dir = 'UP'; };
+    document.getElementById('sn-down').onclick = () => { if (dir !== 'UP') dir = 'DOWN'; };
+    document.getElementById('sn-left').onclick = () => { if (dir !== 'RIGHT') dir = 'LEFT'; };
+    document.getElementById('sn-right').onclick = () => { if (dir !== 'LEFT') dir = 'RIGHT'; };
+
+    gameLoopTimer = setInterval(() => {
+      ctx.fillStyle = '#020612';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(food.x + box / 2, food.y + box / 2, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      snake.forEach((part, i) => {
+        ctx.fillStyle = i === 0 ? '#ffffff' : '#0070d1';
+        ctx.fillRect(part.x + 1, part.y + 1, box - 2, box - 2);
+      });
+
+      let headX = snake[0].x;
+      let headY = snake[0].y;
+      if (dir === 'LEFT') headX -= box;
+      if (dir === 'RIGHT') headX += box;
+      if (dir === 'UP') headY -= box;
+      if (dir === 'DOWN') headY += box;
+
+      if (headX < 0) headX = canvas.width - box;
+      if (headX >= canvas.width) headX = 0;
+      if (headY < 0) headY = canvas.height - box;
+      if (headY >= canvas.height) headY = 0;
+
+      if (headX === food.x && headY === food.y) {
+        score += 10;
+        document.getElementById('game-score').textContent = `Счёт: ${score}`;
+        food = {
+          x: Math.floor(Math.random() * (canvas.width / box)) * box,
+          y: Math.floor(Math.random() * (canvas.height / box)) * box
+        };
+      } else {
+        snake.pop();
+      }
+
+      const newHead = { x: headX, y: headY };
+      if (snake.some(s => s.x === newHead.x && s.y === newHead.y)) {
+        stopGameLoop();
+        showToast('Сессия завершена — нажмите «Заново»');
+        return;
+      }
+      snake.unshift(newHead);
+    }, 150);
+  }
+
+  function initCatcherGame(stage) {
+    stage.innerHTML = `
+      <div style="display:flex; align-items:center; gap:20px;">
+        <button class="btn ghost" style="height:84px; width:56px;" id="ct-left">L</button>
+        <canvas id="catcher-canvas" width="260" height="220"></canvas>
+        <button class="btn ghost" style="height:84px; width:56px;" id="ct-right">R</button>
+      </div>
+    `;
+    const canvas = document.getElementById('catcher-canvas');
+    const ctx = canvas.getContext('2d');
+    let padX = 100;
+    const padW = 64;
+    let score = 0;
+    let items = [];
+
+    document.getElementById('game-score').textContent = 'Счёт: 0';
+    document.getElementById('ct-left').onclick = () => { padX = Math.max(0, padX - 34); };
+    document.getElementById('ct-right').onclick = () => { padX = Math.min(canvas.width - padW, padX + 34); };
+
+    let tick = 0;
+    gameLoopTimer = setInterval(() => {
+      tick++;
+      ctx.fillStyle = '#020612';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (tick % 22 === 0) {
+        items.push({
+          x: Math.random() * (canvas.width - 16),
+          y: 0,
+          bad: Math.random() < 0.25
+        });
+      }
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(padX, canvas.height - 16, padW, 8);
+
+      items.forEach((it, idx) => {
+        it.y += 4;
+        ctx.fillStyle = it.bad ? '#f43f5e' : '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(it.x + 8, it.y + 8, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (it.y + 14 >= canvas.height - 16 && it.x + 14 >= padX && it.x <= padX + padW) {
+          if (it.bad) {
+            stopGameLoop();
+            showToast('Щит пробит — нажмите «Заново»');
+          } else {
+            score += 5;
+            document.getElementById('game-score').textContent = `Счёт: ${score}`;
+          }
+          items.splice(idx, 1);
+        } else if (it.y > canvas.height) {
+          items.splice(idx, 1);
+        }
+      });
+    }, 35);
+  }
+
+  document.body.style.background = THEMES[osState.themeIdx];
+  renderHome();
+</script>
+</body>
+</html>
